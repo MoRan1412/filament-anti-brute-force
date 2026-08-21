@@ -1,20 +1,23 @@
 <?php
 
-namespace VendorName\Skeleton;
+namespace MoRan1412\FilamentAntiBruteForce;
 
 use Filament\Contracts\Plugin;
 use Filament\Panel;
+use MoRan1412\FilamentAntiBruteForce\Pages\AntiBruteForce;
 
-class SkeletonPlugin implements Plugin
+class FilamentAntiBruteForcePlugin implements Plugin
 {
     public function getId(): string
     {
-        return 'skeleton';
+        return 'filament-anti-brute-force';
     }
 
     public function register(Panel $panel): void
     {
-        //
+        $panel->pages([
+            AntiBruteForce::class,
+        ]);
     }
 
     public function boot(Panel $panel): void

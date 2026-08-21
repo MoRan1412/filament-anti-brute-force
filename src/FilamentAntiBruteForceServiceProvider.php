@@ -1,26 +1,28 @@
 <?php
 
-namespace VendorName\Skeleton;
+namespace MoRan1412\FilamentAntiBruteForce;
 
-use Filament\Support\Assets\AlpineComponent;
 use Filament\Support\Assets\Asset;
-use Filament\Support\Assets\Css;
-use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Facades\FilamentIcon;
+use Illuminate\Auth\Events\Attempting;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Filesystem\Filesystem;
 use Livewire\Features\SupportTesting\Testable;
+use MoRan1412\FilamentAntiBruteForce\Commands\CleanupCommand;
+use MoRan1412\FilamentAntiBruteForce\Listeners\AuthenticationListener;
+use MoRan1412\FilamentAntiBruteForce\Testing\TestsFilamentAntiBruteForce;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use VendorName\Skeleton\Commands\SkeletonCommand;
-use VendorName\Skeleton\Testing\TestsSkeleton;
 
-class SkeletonServiceProvider extends PackageServiceProvider
+class FilamentAntiBruteForceServiceProvider extends PackageServiceProvider
 {
-    public static string $name = 'skeleton';
+    public static string $name = 'filament-anti-brute-force';
 
-    public static string $viewNamespace = 'skeleton';
+    public static string $viewNamespace = 'filament-anti-brute-force';
 
     public function configurePackage(Package $package): void
     {
@@ -30,35 +32,24 @@ class SkeletonServiceProvider extends PackageServiceProvider
          * More info: https://github.com/spatie/laravel-package-tools
          */
         $package->name(static::$name)
+            ->hasConfigFile('anti-brute-force')
+            ->hasMigrations($this->getMigrations())
+            ->hasTranslations()
+            ->hasViews(static::$viewNamespace)
             ->hasCommands($this->getCommands())
             ->hasInstallCommand(function (InstallCommand $command) {
                 $command
                     ->publishConfigFile()
                     ->publishMigrations()
                     ->askToRunMigrations()
-                    ->askToStarRepoOnGitHub(':vendor_slug/:package_slug');
+                    ->askToStarRepoOnGitHub('moran1412/filament-anti-brute-force');
             });
-
-        $configFileName = $package->shortName();
-
-        if (file_exists($package->basePath("/../config/{$configFileName}.php"))) {
-            $package->hasConfigFile();
-        }
-
-        if (file_exists($package->basePath('/../database/migrations'))) {
-            $package->hasMigrations($this->getMigrations());
-        }
-
-        if (file_exists($package->basePath('/../resources/lang'))) {
-            $package->hasTranslations();
-        }
-
-        if (file_exists($package->basePath('/../resources/views'))) {
-            $package->hasViews(static::$viewNamespace);
-        }
     }
 
-    public function packageRegistered(): void {}
+    public function packageRegistered(): void
+    {
+        $this->app->singleton(AntiBruteForceService::class);
+    }
 
     public function packageBooted(): void
     {
@@ -80,18 +71,25 @@ class SkeletonServiceProvider extends PackageServiceProvider
         if (app()->runningInConsole()) {
             foreach (app(Filesystem::class)->files(__DIR__ . '/../stubs/') as $file) {
                 $this->publishes([
-                    $file->getRealPath() => base_path("stubs/skeleton/{$file->getFilename()}"),
-                ], 'skeleton-stubs');
+                    $file->getRealPath() => base_path("stubs/filament-anti-brute-force/{$file->getFilename()}"),
+                ], 'filament-anti-brute-force-stubs');
             }
         }
 
         // Testing
-        Testable::mixin(new TestsSkeleton);
+        Testable::mixin(new TestsFilamentAntiBruteForce);
+
+        // Brute force protection listeners
+        $events = $this->app->make(Dispatcher::class);
+
+        $events->listen(Attempting::class, [AuthenticationListener::class, 'handleAttempting']);
+        $events->listen(Failed::class, [AuthenticationListener::class, 'handleFailed']);
+        $events->listen(Login::class, [AuthenticationListener::class, 'handleLogin']);
     }
 
     protected function getAssetPackageName(): ?string
     {
-        return ':vendor_slug/:package_slug';
+        return 'moran1412/filament-anti-brute-force';
     }
 
     /**
@@ -99,11 +97,7 @@ class SkeletonServiceProvider extends PackageServiceProvider
      */
     protected function getAssets(): array
     {
-        return [
-            // AlpineComponent::make('skeleton', __DIR__ . '/../resources/dist/components/skeleton.js'),
-            // Css::make('skeleton-styles', __DIR__ . '/../resources/dist/skeleton.css'),
-            // Js::make('skeleton-scripts', __DIR__ . '/../resources/dist/skeleton.js'),
-        ];
+        return [];
     }
 
     /**
@@ -112,7 +106,7 @@ class SkeletonServiceProvider extends PackageServiceProvider
     protected function getCommands(): array
     {
         return [
-            SkeletonCommand::class,
+            CleanupCommand::class,
         ];
     }
 
@@ -146,7 +140,7 @@ class SkeletonServiceProvider extends PackageServiceProvider
     protected function getMigrations(): array
     {
         return [
-            'create_skeleton_table',
+            'create_anti_brute_force_table',
         ];
     }
 }

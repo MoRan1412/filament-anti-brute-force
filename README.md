@@ -1,70 +1,145 @@
-# :package_description
+# Brute force login protection for Filament, throttling and locking out malicious IPs and emails.
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/:vendor_slug/:package_slug.svg?style=flat-square)](https://packagist.org/packages/:vendor_slug/:package_slug)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/:vendor_slug/:package_slug/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/:vendor_slug/:package_slug/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/:vendor_slug/:package_slug/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/:vendor_slug/:package_slug/actions?query=workflow%3A"Fix+PHP+code+styling"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/:vendor_slug/:package_slug.svg?style=flat-square)](https://packagist.org/packages/:vendor_slug/:package_slug)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/moran1412/filament-anti-brute-force.svg?style=flat-square)](https://packagist.org/packages/moran1412/filament-anti-brute-force)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/moran1412/filament-anti-brute-force/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/moran1412/filament-anti-brute-force/actions?query=workflow%3Atests+branch%3Amain)
+[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/moran1412/filament-anti-brute-force/fix-code-style.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/moran1412/filament-anti-brute-force/actions?query=workflow%3A"fix-code-style"+branch%3Amain)
+[![Total Downloads](https://img.shields.io/packagist/dt/moran1412/filament-anti-brute-force.svg?style=flat-square)](https://packagist.org/packages/moran1412/filament-anti-brute-force)
 
-<!--delete-->
----
-This repo can be used to scaffold a Filament plugin. Follow these steps to get started:
+Brute force login protection for Filament panels and Laravel apps. Failed login attempts are recorded per IP/email pair in a database table; once a threshold is reached the IP and/or email is locked out for a configurable, escalating duration. Whitelists bypass protection entirely, admins are notified by email on lockouts, and a panel page lets you inspect, unblock and delete recorded attempts.
 
-1. Press the "Use this template" button at the top of this repo to create a new repo with the contents of this skeleton.
-2. Run "php ./configure.php" to run a script that will replace all placeholders throughout all the files.
-3. Make something great!
----
-<!--/delete-->
+> [!NOTE]
+> Filament already throttles its login page at 5 attempts per minute per IP. This package adds the missing **lockout layer** on top of that: persistent tracking, escalating bans, per-email protection and an admin UI.
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+## Requirements
+
+- PHP 8.2+
+- Laravel 11, 12 or 13
+- Filament v5 (Livewire 4)
 
 ## Installation
 
 You can install the package via composer:
 
 ```bash
-composer require :vendor_slug/:package_slug
+composer require moran1412/filament-anti-brute-force
 ```
 
-> [!IMPORTANT]
-> If you have not set up a custom theme and are using Filament Panels follow the instructions in the [Filament Docs](https://filamentphp.com/docs/4.x/styling/overview#creating-a-custom-theme) first.
-
-After setting up a custom theme add the plugin's views to your theme css file or your app's css file if using the standalone packages.
-
-```css
-@source '../../../../vendor/:vendor_slug/:package_slug/resources/**/*.blade.php';
-```
-
-You can publish and run the migrations with:
+Publish and run the migrations, and publish the config file:
 
 ```bash
-php artisan vendor:publish --tag=":package_slug-migrations"
+php artisan vendor:publish --tag="filament-anti-brute-force-migrations"
+php artisan vendor:publish --tag="filament-anti-brute-force-config"
 php artisan migrate
 ```
 
-You can publish the config file with:
+Or run the interactive install command, which does all of the above:
 
 ```bash
-php artisan vendor:publish --tag=":package_slug-config"
+php artisan filament-anti-brute-force:install
 ```
 
-Optionally, you can publish the views using
+Optionally, you can publish the views and translations using:
 
 ```bash
-php artisan vendor:publish --tag=":package_slug-views"
+php artisan vendor:publish --tag="filament-anti-brute-force-views"
+php artisan vendor:publish --tag="filament-anti-brute-force-translations"
 ```
 
-This is the contents of the published config file:
+To enable the **admin page** (view / unblock / delete recorded attempts), register the plugin in your panel provider, e.g. `app/Providers/Filament/AdminPanelProvider.php`:
+
+```php
+use MoRan1412\FilamentAntiBruteForce\FilamentAntiBruteForcePlugin;
+
+public function panel(Panel $panel): Panel
+{
+    return $panel
+        // ...
+        ->plugin(FilamentAntiBruteForcePlugin::make());
+}
+```
+
+The core protection works **without** registering the plugin — only the admin page needs it.
+
+## How it works
+
+The package listens to three Laravel auth events, so it protects **every** login flow in your app (Filament panels, Fortify, custom controllers):
+
+| Event | Action |
+| --- | --- |
+| `Illuminate\Auth\Events\Attempting` | If the IP or email is currently locked out, a `ValidationException` with the lockout message is thrown before any credential work happens. |
+| `Illuminate\Auth\Events\Failed` | The failure is recorded for the (IP, email) pair. When the threshold is reached, the IP and/or email is locked out and admins are notified by email. |
+| `Illuminate\Auth\Events\Login` | A successful login clears all counters and locks for that IP and email. |
+
+Lockout semantics:
+
+- Rows are stored per **(IP, email) pair** in the `filament_abf_attempts` table.
+- With `tracking.per_ip` enabled, the **sum** of attempts across all emails from one IP triggers a lockout of that IP — rotating emails doesn't help attackers. `tracking.per_email` does the same across IPs for one email.
+- Lock durations **escalate**: the first lockout lasts `lockout_minutes`; the 2nd, 3rd and subsequent lockouts use `ban_hours` (e.g. `[24, 72, 168]` = 1 day, 3 days, 7 days+). The last value repeats for every further lockout.
+- Attempts **decay**: failures older than `attempts_window_minutes` no longer count, and the counter restarts.
+- A lock is **never extended** by further attempts while it is active; a successful login resets everything (forgiving legitimate owners).
+- The lockout message is rendered in the Filament login form (`data.email` error key) and as a standard `email` validation error in non-Filament forms (redirect back for web requests, 422 for JSON).
+- Localhost (`127.0.0.1`, `::1`) is whitelisted by default.
+
+## Configuration
+
+This is the contents of the published config file (`config/anti-brute-force.php`):
 
 ```php
 return [
+    'enabled' => true,               // master switch
+    'max_attempts' => 10,            // failures allowed inside the window before a lockout
+    'lockout_minutes' => 15,         // duration of the first lockout
+    'ban_hours' => [24, 72, 168],    // 2nd, 3rd, 4th+ lockout durations; last value repeats
+    'attempts_window_minutes' => 30, // decay + aggregate counting window
+
+    'tracking' => [
+        'per_ip' => true,            // aggregate attempts across emails per IP
+        'per_email' => true,         // aggregate attempts across IPs per email
+        'guards' => [],              // restrict to specific guards, e.g. ['web']; empty = all
+    ],
+
+    'whitelisted_ips' => ['127.0.0.1', '::1'],
+    'whitelisted_emails' => [],
+
+    'notifications' => [
+        'enabled' => true,
+        'mail' => [
+            'to' => [],              // admin addresses; empty = no notifications
+            'cooldown_minutes' => 60, // at most one notification per IP per window
+            'queue' => false,        // false = sync; queue name string = queued
+        ],
+    ],
+
+    'admin_page' => [
+        'enabled' => true,
+        'slug' => 'anti-brute-force',
+        'navigation_label' => null,  // null falls back to translations
+        'navigation_icon' => 'heroicon-o-shield-exclamation',
+        'navigation_group' => null,
+        'navigation_sort' => null,
+        'authorize' => null,         // ability name checked via $user->can(); null = any authenticated panel user
+    ],
 ];
 ```
 
-## Usage
+> [!WARNING]
+> The admin page is visible to **any authenticated panel user** by default. Restrict it with the `authorize` option and a Gate, e.g.:
+>
+> ```php
+> // config/anti-brute-force.php
+> 'admin_page' => ['authorize' => 'view-anti-brute-force', /* ... */],
+>
+> // app/Providers/AppServiceProvider.php
+> Gate::define('view-anti-brute-force', fn (User $user) => $user->can('access-admin-settings'));
+> ```
 
-```php
-$variable = new VendorName\Skeleton();
-echo $variable->echoPhrase('Hello, VendorName!');
+## Maintenance
+
+Delete stale, expired records (attempts outside the decay window with no active lock):
+
+```bash
+php artisan filament-anti-brute-force:cleanup
+php artisan filament-anti-brute-force:cleanup --all   # delete every record
 ```
 
 ## Testing
@@ -87,7 +162,7 @@ Please review [our security policy](.github/SECURITY.md) on how to report securi
 
 ## Credits
 
-- [:author_name](https://github.com/:author_username)
+- [MoRan](https://github.com/MoRan1412)
 - [All Contributors](../../contributors)
 
 ## License
