@@ -124,7 +124,6 @@ class AntiBruteForce extends Page implements HasTable
                         'locked' => __('filament-anti-brute-force::anti-brute-force.page.table.filters.locked'),
                         'tracked' => __('filament-anti-brute-force::anti-brute-force.page.table.filters.tracked'),
                     ])
-                    ->default('locked')
                     ->query(function (Builder $query, array $data): Builder {
                         return match ($data['value']) {
                             'locked' => $query->where('locked_until', '>', now()),

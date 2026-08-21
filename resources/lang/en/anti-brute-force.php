@@ -7,7 +7,7 @@ return [
     'page' => [
         'navigation_label' => 'Anti Brute Force',
         'title' => 'Anti Brute Force',
-        'heading' => 'Blocked login attempts',
+        'heading' => 'Login Attempts',
         'table' => [
             'columns' => [
                 'ip' => 'IP Address',
