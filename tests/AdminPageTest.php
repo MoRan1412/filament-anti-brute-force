@@ -8,6 +8,7 @@ use Livewire\Livewire;
 use MoRan1412\FilamentAntiBruteForce\FilamentAntiBruteForcePlugin;
 use MoRan1412\FilamentAntiBruteForce\Models\LoginAttempt;
 use MoRan1412\FilamentAntiBruteForce\Pages\AntiBruteForce;
+use MoRan1412\FilamentAntiBruteForce\Tests\Support\TestCluster;
 use MoRan1412\FilamentAntiBruteForce\Tests\Support\TestUser;
 
 beforeEach(function () {
@@ -85,4 +86,16 @@ it('hides navigation when disabled', function () {
     config()->set('anti-brute-force.admin_page.enabled', false);
 
     expect(AntiBruteForce::shouldRegisterNavigation())->toBeFalse();
+});
+
+it('nests under a cluster when configured', function () {
+    expect(AntiBruteForce::getCluster())->toBeNull();
+
+    config()->set('anti-brute-force.admin_page.cluster', TestCluster::class);
+
+    expect(AntiBruteForce::getCluster())->toBe(TestCluster::class);
+
+    config()->set('anti-brute-force.admin_page.cluster', 'Not\\A\\Cluster');
+
+    expect(AntiBruteForce::getCluster())->toBeNull();
 });

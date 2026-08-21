@@ -113,6 +113,7 @@ return [
     'admin_page' => [
         'enabled' => true,
         'slug' => 'anti-brute-force',
+        'cluster' => null,           // optional Filament Cluster class-string to nest the page under
         'navigation_label' => null,  // null falls back to translations
         'navigation_icon' => 'heroicon-o-shield-exclamation',
         'navigation_group' => null,

@@ -6,6 +6,7 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
+use Filament\Clusters\Cluster;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Tables\Columns\TextColumn;
@@ -53,6 +54,13 @@ class AntiBruteForce extends Page implements HasTable
     public static function getDefaultSlug(): string
     {
         return (string) (config('anti-brute-force.admin_page.slug') ?: 'anti-brute-force');
+    }
+
+    public static function getCluster(): ?string
+    {
+        $cluster = config('anti-brute-force.admin_page.cluster');
+
+        return is_string($cluster) && is_subclass_of($cluster, Cluster::class) ? $cluster : null;
     }
 
     public static function getNavigationLabel(): string

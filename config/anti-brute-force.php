@@ -54,6 +54,9 @@ return [
     'admin_page' => [
         'enabled' => true,
         'slug' => 'anti-brute-force',
+        // Optional class-string of a Filament Cluster (e.g. App\Filament\Clusters\Settings\SettingsCluster)
+        // to nest the page under. null = top-level navigation item.
+        'cluster' => null,
         // Labels fall back to translations when null.
         'navigation_label' => null,
         'navigation_icon' => 'heroicon-o-shield-exclamation',
