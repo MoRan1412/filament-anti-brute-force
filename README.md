@@ -1,8 +1,8 @@
 # Brute force login protection for Filament, throttling and locking out malicious IPs and emails.
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/moran1412/filament-anti-brute-force.svg?style=flat-square)](https://packagist.org/packages/moran1412/filament-anti-brute-force)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/moran1412/filament-anti-brute-force/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/moran1412/filament-anti-brute-force/actions?query=workflow%3Atests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/moran1412/filament-anti-brute-force/fix-code-style.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/moran1412/filament-anti-brute-force/actions?query=workflow%3A"fix-code-style"+branch%3Amain)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/moran1412/filament-anti-brute-force/tests.yml?branch=5.x&label=tests&style=flat-square)](https://github.com/moran1412/filament-anti-brute-force/actions?query=workflow%3Atests+branch%3A5.x)
+[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/moran1412/filament-anti-brute-force/fix-code-style.yml?branch=5.x&label=code%20style&style=flat-square)](https://github.com/moran1412/filament-anti-brute-force/actions?query=workflow%3A"fix-code-style"+branch%3A5.x)
 [![Total Downloads](https://img.shields.io/packagist/dt/moran1412/filament-anti-brute-force.svg?style=flat-square)](https://packagist.org/packages/moran1412/filament-anti-brute-force)
 
 Brute force login protection for Filament panels and Laravel apps. Failed login attempts are recorded per IP/email pair in a database table; once a threshold is reached the IP and/or email is locked out for a configurable, escalating duration. Whitelists bypass protection entirely, admins are notified by email on lockouts, and a panel page lets you inspect, unblock and delete recorded attempts.
